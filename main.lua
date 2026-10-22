@@ -1,619 +1,688 @@
---[[
-    ═══════════════════════════════════════════
-              REDZ HUB  |  by 𝒍𝒂𝒏𝒔𝒉𝒆𝒓
-    ═══════════════════════════════════════════
-    Protected by 𝒍𝒂𝒏𝒔𝒉𝒆𝒓
-    لا يمكن استخدامه إلا لأصدقاء 𝒍𝒂𝒏𝒔𝒉𝒆𝒓 و 𝒔𝒍𝒂𝒏𝒅𝒆𝒓
-]]
+-- ================================================================
+-- REDZ HUB | محمي من قبل 𝒍𝒂𝒏𝒔𝒉𝒆𝒓 و 𝒔𝒍𝒂𝒏𝒅𝒆𝒓
+-- لا يمكن استخدامه إلا من أصدقاء Lansher و Slander
+-- ================================================================
 
--- ═══════════════ SERVICES ═══════════════
-local Players           = game:GetService("Players")
-local UserInputService  = game:GetService("UserInputService")
-local TweenService      = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
 
-local LP = Players.LocalPlayer
+-- ============ COLORS ============
+local C = {
+    Bg      = Color3.fromRGB(12, 10, 18),
+    Panel   = Color3.fromRGB(22, 18, 30),
+    Elem    = Color3.fromRGB(38, 30, 48),
+    Acc     = Color3.fromRGB(180, 40, 60),
+    Acc2    = Color3.fromRGB(255, 90, 110),
+    Txt     = Color3.fromRGB(240, 240, 245),
+    Sub     = Color3.fromRGB(150, 150, 160),
+    Green   = Color3.fromRGB(100, 220, 120),
+    Yellow  = Color3.fromRGB(255, 220, 100),
+}
 
--- ═══════════════ CONFIG ═══════════════
-local TOGGLE_IMG = "rbxassetid://134125667034392"
-local BG_IMG     = "rbxassetid://77924857384829"
-
--- ⚠️ استبدل هذه الأي دي بأسكربتات الحركة الخاصة بك (البانق والمص)
-local BANG_ANIM = "rbxassetid://507771019"   -- ← ضع أي دي حركة البانق
-local SUCK_ANIM = "rbxassetid://507770239"   -- ← ضع أي دي حركة المص/اللعق
-
-local OWNER_PASS = "omar"
-local ADMIN_PASS = "scopa"
-
-local USAGE_START = tick()
-local RANK = "none"
-
--- ═══════════════ CLEANUP OLD ═══════════════
-if game.CoreGui:FindFirstChild("REDZ_HUB") then
-    game.CoreGui.REDZ_HUB:Destroy()
+-- ============ CLEANUP ============
+if CoreGui:FindFirstChild("REDZ_HUB_UI") then
+    CoreGui.REDZ_HUB_UI:Destroy()
 end
 
--- ═══════════════ MAIN GUI ═══════════════
-local SG = Instance.new("ScreenGui")
-SG.Name = "REDZ_HUB"
-SG.ResetOnSpawn = false
-SG.IgnoreGuiInset = true
-SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-SG.Parent = game.CoreGui
-
--- ─── زر التفعيل ───
-local Toggle = Instance.new("ImageButton")
-Toggle.Name = "Toggle"
-Toggle.Size = UDim2.new(0, 60, 0, 60)
-Toggle.Position = UDim2.new(0, 20, 0, 300)
-Toggle.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-Toggle.Image = TOGGLE_IMG
-Toggle.BorderSizePixel = 0
-Toggle.ZIndex = 10
-Toggle.Parent = SG
-Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
-local tStroke = Instance.new("UIStroke", Toggle)
-tStroke.Color = Color3.fromRGB(150, 50, 255)
-tStroke.Thickness = 2
-
--- سحب زر التفعيل
-local dragT, tStart, tPos
-Toggle.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragT = true; tStart = input.Position; tPos = Toggle.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragT = false end
-        end)
+-- ============ FILE SETUP ============
+if not isfolder("RedzHub") then makefolder("RedzHub") end
+local playtimeFile = "RedzHub/playtime.txt"
+local savedPlaytime = 0
+if isfile(playtimeFile) then
+    local ok, v = pcall(readfile, playtimeFile)
+    if ok then savedPlaytime = tonumber(v) or 0 end
+end
+local sessionStart = tick()
+task.spawn(function()
+    while true do
+        task.wait(20)
+        pcall(writefile, playtimeFile, tostring(savedPlaytime + (tick() - sessionStart)))
     end
 end)
+local function getHoursActive()
+    return (savedPlaytime + (tick() - sessionStart)) / 3600
+end
 
--- ─── الواجهة الرئيسية ───
-local Main = Instance.new("Frame")
-Main.Name = "Main"
-Main.Size = UDim2.new(0, 620, 0, 440)
-Main.Position = UDim2.new(0.5, -310, 0.5, -220)
-Main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-Main.BorderSizePixel = 0
-Main.Visible = false
-Main.ZIndex = 5
-Main.Parent = SG
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
-local mainStroke = Instance.new("UIStroke", Main)
-mainStroke.Color = Color3.fromRGB(150, 50, 255)
-mainStroke.Thickness = 1.5
+-- ============ ANIMATION IDS (بدلها لو تبي) ============
+local ANIMS = {
+    BangBehind  = "rbxassetid://12874253069",
+    BangForward = "rbxassetid://12518131721",
+}
 
--- خلفية صورة
-local bgImg = Instance.new("ImageLabel", Main)
-bgImg.Size = UDim2.new(1, 0, 1, 0)
-bgImg.BackgroundTransparency = 1
-bgImg.Image = BG_IMG
-bgImg.ImageTransparency = 0.55
-bgImg.ScaleType = Enum.ScaleType.Crop
-bgImg.ZIndex = 5
-Instance.new("UICorner", bgImg).CornerRadius = UDim.new(0, 12)
+-- ============ VARIABLES ============
+local CurrentBangSpeed = 1
+local CurrentSuckSpeed = 1
+local TargetPlayer = nil
+local bangTrackA, bangTrackB = nil, nil
+local activeTrack = nil
+local isBangActive = false
 
--- ─── الهيدر ───
-local Header = Instance.new("Frame", Main)
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-Header.BackgroundTransparency = 0.15
-Header.ZIndex = 6
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
+-- Timer/Tracking
+local tracked = {
+    userId = nil,
+    name = nil,
+    totalTime = 0,
+    sessionStart = 0,
+    active = false,
+    exits = 0,
+    entries = 0,
+}
 
-local Title = Instance.new("TextLabel", Header)
-Title.Size = UDim2.new(1, -100, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "REDZ HUB  |  𝒍𝒂𝒏𝒔𝒉𝒆𝒓"
-Title.TextColor3 = Color3.fromRGB(170, 80, 255)
-Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 20
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.ZIndex = 6
+-- ============ UI ============
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "REDZ_HUB_UI"
+Gui.ResetOnSpawn = false
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Gui.DisplayOrder = 999
+Gui.Parent = CoreGui
 
-local CloseBtn = Instance.new("TextButton", Header)
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -38, 0, 7)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 16
-CloseBtn.ZIndex = 6
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-CloseBtn.MouseButton1Click:Connect(function() Main.Visible = false end)
+-- Toggle Button
+local toggle = Instance.new("ImageButton")
+toggle.Name = "Toggle"
+toggle.Size = UDim2.new(0, 58, 0, 58)
+toggle.Position = UDim2.new(0, 20, 0.5, -29)
+toggle.BackgroundColor3 = C.Acc
+toggle.Image = "rbxassetid://134125667034392"
+toggle.BorderSizePixel = 0
+toggle.Draggable = true
+toggle.AutoButtonColor = false
+toggle.Parent = Gui
+Instance.new("UICorner", toggle).CornerRadius = UDim.new(1, 0)
+local tglStroke = Instance.new("UIStroke", toggle)
+tglStroke.Color = C.Acc2
+tglStroke.Thickness = 2
 
--- سحب الواجهة
-local dragM, mStart, mPos
-Header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragM = true; mStart = input.Position; mPos = Main.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragM = false end
-        end)
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragM and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local d = input.Position - mStart
-        Main.Position = UDim2.new(mPos.X.Scale, mPos.X.Offset + d.X, mPos.Y.Scale, mPos.Y.Offset + d.Y)
-    end
-    if dragT and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local d = input.Position - tStart
-        Toggle.Position = UDim2.new(tPos.X.Scale, tPos.X.Offset + d.X, tPos.Y.Scale, tPos.Y.Offset + d.Y)
-    end
-end)
+TweenService:Create(toggle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+    Size = UDim2.new(0, 62, 0, 62)
+}):Play()
 
-Toggle.MouseButton1Click:Connect(function()
-    Main.Visible = not Main.Visible
-end)
+-- Main Frame
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.new(0, 660, 0, 490)
+main.Position = UDim2.new(0.5, -330, 0.5, -245)
+main.BackgroundColor3 = C.Bg
+main.BorderSizePixel = 0
+main.Visible = false
+main.Active = true
+main.Draggable = true
+main.Parent = Gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 14)
+local mainStroke = Instance.new("UIStroke", main)
+mainStroke.Color = C.Acc
+mainStroke.Thickness = 2
 
--- ─── شريط التابات ───
-local TabBar = Instance.new("Frame", Main)
-TabBar.Size = UDim2.new(0, 135, 1, -55)
-TabBar.Position = UDim2.new(0, 5, 0, 50)
-TabBar.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-TabBar.BackgroundTransparency = 0.25
-TabBar.ZIndex = 6
-Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 8)
-local tList = Instance.new("UIListLayout", TabBar)
-tList.Padding = UDim.new(0, 4)
-tList.SortOrder = Enum.SortOrder.LayoutOrder
-local tPad = Instance.new("UIPadding", TabBar)
-tPad.PaddingTop = UDim.new(0, 4)
-tPad.PaddingLeft = UDim.new(0, 4)
-tPad.PaddingRight = UDim.new(0, 4)
+-- Background Image (as requested)
+local bg = Instance.new("ImageLabel")
+bg.Size = UDim2.new(1, 0, 1, 0)
+bg.BackgroundTransparency = 1
+bg.Image = "rbxassetid://77924857384829"
+bg.ScaleType = Enum.ScaleType.Crop
+bg.ImageTransparency = 0.78
+bg.ZIndex = 0
+bg.Parent = main
+Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 14)
 
--- ─── منطقة المحتوى ───
-local Content = Instance.new("Frame", Main)
-Content.Size = UDim2.new(1, -150, 1, -60)
-Content.Position = UDim2.new(0, 145, 0, 52)
-Content.BackgroundTransparency = 1
-Content.ZIndex = 6
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 42)
+titleBar.BackgroundColor3 = C.Acc
+titleBar.BackgroundTransparency = 0.15
+titleBar.BorderSizePixel = 0
+titleBar.ZIndex = 2
+titleBar.Parent = main
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 14)
 
--- ═══════════════ HELPERS ═══════════════
-local Tabs = {}
+local titleLbl = Instance.new("TextLabel")
+titleLbl.Size = UDim2.new(1, -100, 1, 0)
+titleLbl.Position = UDim2.new(0, 15, 0, 0)
+titleLbl.BackgroundTransparency = 1
+titleLbl.Text = "REDZ HUB  |  𝒍𝒂𝒏𝒔𝒉𝒆𝒓"
+titleLbl.TextColor3 = C.Txt
+titleLbl.Font = Enum.Font.GothamBold
+titleLbl.TextSize = 17
+titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+titleLbl.ZIndex = 2
+titleLbl.Parent = titleBar
 
-local function MakeTab(name)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -38, 0, 6)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 14
+closeBtn.BorderSizePixel = 0
+closeBtn.ZIndex = 3
+closeBtn.Parent = titleBar
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+
+-- Tab Bar
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(0, 150, 1, -54)
+tabBar.Position = UDim2.new(0, 10, 0, 48)
+tabBar.BackgroundColor3 = C.Panel
+tabBar.BackgroundTransparency = 0.35
+tabBar.BorderSizePixel = 0
+tabBar.ZIndex = 2
+tabBar.Parent = main
+Instance.new("UICorner", tabBar).CornerRadius = UDim.new(0, 10)
+
+local tabLayout = Instance.new("UIListLayout", tabBar)
+tabLayout.Padding = UDim.new(0, 4)
+tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local tabPad = Instance.new("UIPadding", tabBar)
+tabPad.PaddingTop = UDim.new(0, 8)
+tabPad.PaddingLeft = UDim.new(0, 5)
+tabPad.PaddingRight = UDim.new(0, 5)
+
+-- Content
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, -175, 1, -54)
+content.Position = UDim2.new(0, 168, 0, 48)
+content.BackgroundColor3 = C.Panel
+content.BackgroundTransparency = 0.35
+content.BorderSizePixel = 0
+content.ZIndex = 2
+content.Parent = main
+Instance.new("UICorner", content).CornerRadius = UDim.new(0, 10)
+
+-- ============ HELPER FUNCTIONS ============
+local tabs = {}
+local function createTab(name)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 32)
-    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
-    btn.Text = name
-    btn.TextColor3 = Color3.fromRGB(200, 200, 220)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 12
-    btn.ZIndex = 7
-    btn.Parent = TabBar
+    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.BackgroundColor3 = C.Elem
+    btn.BackgroundTransparency = 0.3
+    btn.Text = "  " .. name
+    btn.TextColor3 = C.Sub
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 13
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.BorderSizePixel = 0
+    btn.ZIndex = 3
+    btn.Parent = tabBar
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
-    local scroll = Instance.new("ScrollingFrame", Content)
-    scroll.Size = UDim2.new(1, 0, 1, 0)
-    scroll.BackgroundTransparency = 1
-    scroll.BorderSizePixel = 0
-    scroll.Visible = false
-    scroll.ScrollBarThickness = 3
-    scroll.ScrollBarImageColor3 = Color3.fromRGB(150, 50, 255)
-    scroll.ZIndex = 6
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-
-    local pad = Instance.new("UIPadding", scroll)
-    pad.PaddingRight = UDim.new(0, 6)
-    local ll = Instance.new("UIListLayout", scroll)
-    ll.Padding = UDim.new(0, 5)
-    ll.SortOrder = Enum.SortOrder.LayoutOrder
-    ll:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scroll.CanvasSize = UDim2.new(0, 0, 0, ll.AbsoluteContentSize.Y + 10)
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, -12, 1, -12)
+    page.Position = UDim2.new(0, 6, 0, 6)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.ScrollBarThickness = 4
+    page.ScrollBarImageColor3 = C.Acc
+    page.ZIndex = 3
+    page.Visible = false
+    page.Parent = content
+    local pl = Instance.new("UIListLayout", page)
+    pl.Padding = UDim.new(0, 6)
+    pl.SortOrder = Enum.SortOrder.LayoutOrder
+    pl:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0, 0, 0, pl.AbsoluteContentSize.Y + 10)
     end)
 
-    Tabs[name] = { Button = btn, Frame = scroll }
+    tabs[name] = { btn = btn, page = page }
     btn.MouseButton1Click:Connect(function()
-        for _, t in pairs(Tabs) do
-            t.Button.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
-            t.Button.TextColor3 = Color3.fromRGB(200, 200, 220)
-            t.Frame.Visible = false
+        for _, t in pairs(tabs) do
+            t.btn.BackgroundColor3 = C.Elem
+            t.btn.TextColor3 = C.Sub
+            t.page.Visible = false
         end
-        btn.BackgroundColor3 = Color3.fromRGB(150, 50, 255)
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        scroll.Visible = true
+        btn.BackgroundColor3 = C.Acc
+        btn.TextColor3 = C.Txt
+        page.Visible = true
     end)
-    return scroll
+    return page
 end
 
-local function MakeButton(parent, text, callback)
+local function makeBtn(parent, text, cb)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, 0, 0, 32)
-    b.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    b.Size = UDim2.new(1, -8, 0, 34)
+    b.BackgroundColor3 = C.Elem
+    b.BackgroundTransparency = 0.15
     b.Text = text
-    b.TextColor3 = Color3.fromRGB(220, 220, 240)
-    b.Font = Enum.Font.GothamSemibold
+    b.TextColor3 = C.Txt
+    b.Font = Enum.Font.GothamMedium
     b.TextSize = 13
-    b.ZIndex = 7
+    b.BorderSizePixel = 0
+    b.ZIndex = 4
     b.Parent = parent
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-    b.MouseButton1Click:Connect(callback)
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = C.Acc}):Play()
+    end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = C.Elem}):Play()
+    end)
+    if cb then b.MouseButton1Click:Connect(cb) end
     return b
 end
 
-local function MakeLabel(parent, text, color)
-    local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1, 0, 0, 26)
-    l.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-    l.Text = text
-    l.TextColor3 = color or Color3.fromRGB(200, 200, 220)
-    l.Font = Enum.Font.Gotham
-    l.TextSize = 12
-    l.ZIndex = 7
-    l.Parent = parent
-    Instance.new("UICorner", l).CornerRadius = UDim.new(0, 4)
-    return l
-end
-
-local function MakeTextbox(parent, placeholder)
+local function makeTxt(parent, placeholder, cb)
     local t = Instance.new("TextBox")
-    t.Size = UDim2.new(1, 0, 0, 32)
-    t.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    t.Size = UDim2.new(1, -8, 0, 32)
+    t.BackgroundColor3 = C.Elem
+    t.BackgroundTransparency = 0.15
     t.Text = ""
-    t.PlaceholderText = placeholder or ""
-    t.PlaceholderColor3 = Color3.fromRGB(120, 120, 150)
-    t.TextColor3 = Color3.fromRGB(220, 220, 240)
-    t.Font = Enum.Font.Gotham
+    t.PlaceholderText = placeholder
+    t.PlaceholderColor3 = C.Sub
+    t.TextColor3 = C.Txt
+    t.Font = Enum.Font.GothamMedium
     t.TextSize = 13
-    t.ZIndex = 7
+    t.BorderSizePixel = 0
+    t.ZIndex = 4
     t.Parent = parent
     Instance.new("UICorner", t).CornerRadius = UDim.new(0, 6)
+    if cb then t.FocusLost:Connect(function() cb(t.Text) end) end
     return t
 end
 
-local function FormatTime(s)
-    s = math.max(0, math.floor(s))
-    return string.format("%02d:%02d:%02d", math.floor(s/3600), math.floor((s%3600)/60), s%60)
+local function makeLbl(parent, text, h, color)
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, -8, 0, h or 24)
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = color or C.Txt
+    l.Font = Enum.Font.GothamMedium
+    l.TextSize = 13
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.ZIndex = 4
+    l.Parent = parent
+    return l
 end
 
--- ═══════════════ تتبع إحصائيات اللاعبين ═══════════════
-local PlayerStats = {}
-
-local function InitStats(p)
-    if PlayerStats[p] then return end
-    PlayerStats[p] = { entries = 0, exits = 0, totalTime = 0, lastEnter = 0, inGame = false }
-end
-
-local function OnEnter(p)
-    InitStats(p)
-    local s = PlayerStats[p]
-    if not s.inGame then
-        s.entries = s.entries + 1
-        s.inGame = true
-        s.lastEnter = tick()
+-- ============ TOGGLE LOGIC ============
+local isOpen = false
+local function setOpen(state)
+    isOpen = state
+    if state then
+        main.Visible = true
+        main.Size = UDim2.new(0, 0, 0, 0)
+        TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+            Size = UDim2.new(0, 660, 0, 490)
+        }):Play()
+    else
+        local tw = TweenService:Create(main, TweenInfo.new(0.2), {Size = UDim2.new(0, 0, 0, 0)})
+        tw:Play()
+        tw.Completed:Connect(function() main.Visible = false end)
     end
 end
+toggle.MouseButton1Click:Connect(function() setOpen(not isOpen) end)
+closeBtn.MouseButton1Click:Connect(function() setOpen(false) end)
 
-local function OnExit(p)
-    local s = PlayerStats[p]
-    if s and s.inGame then
-        s.exits = s.exits + 1
-        s.totalTime = s.totalTime + (tick() - s.lastEnter)
-        s.inGame = false
-    end
-end
+-- ============ TAB 1: بانق GG ============
+local t1 = createTab("بانق GG")
 
-for _, p in ipairs(Players:GetPlayers()) do
-    InitStats(p)
-    if p.Character then OnEnter(p) end
-    p.CharacterAdded:Connect(function() OnEnter(p) end)
-    p.CharacterRemoving:Connect(function() OnExit(p) end)
-end
-Players.PlayerAdded:Connect(function(p)
-    InitStats(p)
-    p.CharacterAdded:Connect(function() OnEnter(p) end)
-    p.CharacterRemoving:Connect(function() OnExit(p) end)
-end)
-Players.PlayerRemoving:Connect(OnExit)
+makeLbl(t1, "اكتب اول 3 احرف من اسم الشخص:")
+local searchBox = makeTxt(t1, "مثال: abc")
 
--- ═══════════════════════════════════════════════════════
--- TAB 1 : بانق GG
--- ═══════════════════════════════════════════════════════
-local bangTab = MakeTab("بانق GG")
+-- Info panel
+local infoPanel = Instance.new("Frame")
+infoPanel.Size = UDim2.new(1, -8, 0, 95)
+infoPanel.BackgroundColor3 = C.Elem
+infoPanel.BackgroundTransparency = 0.3
+infoPanel.BorderSizePixel = 0
+infoPanel.ZIndex = 4
+infoPanel.Parent = t1
+Instance.new("UICorner", infoPanel).CornerRadius = UDim.new(0, 8)
 
-local searchBox = MakeTextbox(bangTab, "اكتب أول 3 أحرف من اسم اللاعب...")
+local profPic = Instance.new("ImageLabel")
+profPic.Size = UDim2.new(0, 75, 0, 75)
+profPic.Position = UDim2.new(0, 10, 0, 10)
+profPic.BackgroundColor3 = C.Bg
+profPic.BorderSizePixel = 0
+profPic.Image = ""
+profPic.ZIndex = 5
+profPic.Parent = infoPanel
+Instance.new("UICorner", profPic).CornerRadius = UDim.new(1, 0)
 
--- لوحة معلومات اللاعب
-local infoFrame = Instance.new("Frame", bangTab)
-infoFrame.Size = UDim2.new(1, 0, 0, 115)
-infoFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-infoFrame.ZIndex = 7
-Instance.new("UICorner", infoFrame).CornerRadius = UDim.new(0, 8)
-
-local avatarImg = Instance.new("ImageLabel", infoFrame)
-avatarImg.Size = UDim2.new(0, 85, 0, 85)
-avatarImg.Position = UDim2.new(0, 10, 0, 15)
-avatarImg.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-avatarImg.ZIndex = 8
-Instance.new("UICorner", avatarImg).CornerRadius = UDim.new(0, 8)
-
-local nameLbl = Instance.new("TextLabel", infoFrame)
-nameLbl.Size = UDim2.new(1, -110, 0, 24)
-nameLbl.Position = UDim2.new(0, 105, 0, 10)
+local nameLbl = Instance.new("TextLabel")
+nameLbl.Size = UDim2.new(1, -100, 0, 24)
+nameLbl.Position = UDim2.new(0, 95, 0, 10)
 nameLbl.BackgroundTransparency = 1
-nameLbl.Text = "لا يوجد لاعب محدد"
-nameLbl.TextColor3 = Color3.fromRGB(170, 80, 255)
+nameLbl.Text = "لا يوجد لاعب"
+nameLbl.TextColor3 = C.Txt
 nameLbl.Font = Enum.Font.GothamBold
-nameLbl.TextSize = 14
+nameLbl.TextSize = 15
 nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-nameLbl.ZIndex = 8
+nameLbl.ZIndex = 5
+nameLbl.Parent = infoPanel
 
-local exitLbl = Instance.new("TextLabel", infoFrame)
+local exitLbl = Instance.new("TextLabel")
 exitLbl.Size = UDim2.new(0, 110, 0, 20)
-exitLbl.Position = UDim2.new(0, 105, 0, 38)
+exitLbl.Position = UDim2.new(0, 95, 0, 38)
 exitLbl.BackgroundTransparency = 1
 exitLbl.Text = "خروج: 0"
-exitLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
-exitLbl.Font = Enum.Font.Gotham
+exitLbl.TextColor3 = C.Acc2
+exitLbl.Font = Enum.Font.GothamMedium
 exitLbl.TextSize = 12
 exitLbl.TextXAlignment = Enum.TextXAlignment.Left
-exitLbl.ZIndex = 8
+exitLbl.ZIndex = 5
+exitLbl.Parent = infoPanel
 
-local entryLbl = Instance.new("TextLabel", infoFrame)
+local entryLbl = Instance.new("TextLabel")
 entryLbl.Size = UDim2.new(0, 110, 0, 20)
-entryLbl.Position = UDim2.new(0, 220, 0, 38)
+entryLbl.Position = UDim2.new(0, 210, 0, 38)
 entryLbl.BackgroundTransparency = 1
 entryLbl.Text = "دخول: 0"
-entryLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
-entryLbl.Font = Enum.Font.Gotham
+entryLbl.TextColor3 = C.Green
+entryLbl.Font = Enum.Font.GothamMedium
 entryLbl.TextSize = 12
 entryLbl.TextXAlignment = Enum.TextXAlignment.Left
-entryLbl.ZIndex = 8
+entryLbl.ZIndex = 5
+entryLbl.Parent = infoPanel
 
-local timerLbl = Instance.new("TextLabel", infoFrame)
-timerLbl.Size = UDim2.new(1, -115, 0, 22)
-timerLbl.Position = UDim2.new(0, 105, 0, 62)
+local timerLbl = Instance.new("TextLabel")
+timerLbl.Size = UDim2.new(0, 160, 0, 22)
+timerLbl.Position = UDim2.new(0, 95, 0, 62)
 timerLbl.BackgroundTransparency = 1
-timerLbl.Text = "الوقت: 00:00:00"
-timerLbl.TextColor3 = Color3.fromRGB(200, 200, 255)
+timerLbl.Text = "⏱ 00:00:00"
+timerLbl.TextColor3 = C.Yellow
 timerLbl.Font = Enum.Font.GothamBold
-timerLbl.TextSize = 13
+timerLbl.TextSize = 14
 timerLbl.TextXAlignment = Enum.TextXAlignment.Left
-timerLbl.ZIndex = 8
+timerLbl.ZIndex = 5
+timerLbl.Parent = infoPanel
 
-local function UpdateInfo()
-    if not selectedPlayer or not PlayerStats[selectedPlayer] then return end
-    local s = PlayerStats[selectedPlayer]
-    local t = s.totalTime
-    if s.inGame then t = t + (tick() - s.lastEnter) end
-    nameLbl.Text = selectedPlayer.Name .. "  (@" .. selectedPlayer.DisplayName .. ")"
-    exitLbl.Text = "خروج: " .. s.exits
-    entryLbl.Text = "دخول: " .. s.entries
-    timerLbl.Text = "الوقت: " .. FormatTime(t)
-end
+-- Bang buttons
+local bangBtn = makeBtn(t1, "BANG (من الخلف)", function() triggerBang(false) end)
+local bangFwdBtn = makeBtn(t1, "BANG FORWARD (مص/لعق)", function() triggerBang(true) end)
 
-task.spawn(function()
-    while true do
-        task.wait(1)
-        UpdateInfo()
-    end
-end)
-
--- أزرار الحركة (تظهر بعد اختيار لاعب)
-local bangBtn = MakeButton(bangTab, "BANG (من الخلف)", function() end)
-bangBtn.Visible = false
-
-local bangFwdBtn = MakeButton(bangTab, "BANG Forward (مص / لعق)", function() end)
-bangFwdBtn.Visible = false
-
-local bangSpeedBox = MakeTextbox(bangTab, "سرعة البانق (1 - 300)")
-bangSpeedBox.Visible = false
-local bangSpeedStart = MakeButton(bangTab, "▶ Start / ابدأ (سرعة البانق)", function()
-    local n = tonumber(bangSpeedBox.Text)
+makeLbl(t1, "سرعة البانق (1-300):")
+local spd1Box = makeTxt(t1, "1-300", function(txt)
+    local n = tonumber(txt)
     if n and n >= 1 and n <= 300 then
-        bangSpeed = n
-        if bangTrack then pcall(function() bangTrack:AdjustSpeed(n) end) end
+        CurrentBangSpeed = n
     end
 end)
-bangSpeedStart.Visible = false
-
-local suckSpeedBox = MakeTextbox(bangTab, "سرعة المص/اللعق (1 - 300)")
-suckSpeedBox.Visible = false
-local suckSpeedStart = MakeButton(bangTab, "▶ Start / ابدأ (سرعة المص)", function()
-    local n = tonumber(suckSpeedBox.Text)
+makeBtn(t1, "START - تثبيت سرعة البانق", function()
+    local n = tonumber(spd1Box.Text)
     if n and n >= 1 and n <= 300 then
-        suckSpeed = n
-        if suckTrack then pcall(function() suckTrack:AdjustSpeed(n) end) end
-    end
-end)
-suckSpeedStart.Visible = false
-
-local function ShowActionButtons(v)
-    bangBtn.Visible = v
-    bangFwdBtn.Visible = v
-    bangSpeedBox.Visible = v
-    bangSpeedStart.Visible = v
-    suckSpeedBox.Visible = v
-    suckSpeedStart.Visible = v
-end
-
-local function SelectPlayer(p)
-    selectedPlayer = p
-    pcall(function()
-        avatarImg.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
-    end)
-    UpdateInfo()
-    ShowActionButtons(true)
-end
-
-searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-    local txt = string.lower(searchBox.Text)
-    if #txt < 1 then
-        selectedPlayer = nil
-        nameLbl.Text = "لا يوجد لاعب محدد"
-        ShowActionButtons(false)
-        return
-    end
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP and string.sub(string.lower(p.Name), 1, #txt) == txt then
-            SelectPlayer(p)
-            return
-        end
+        CurrentBangSpeed = n
+        if activeTrack then activeTrack:AdjustSpeed(CurrentBangSpeed) end
     end
 end)
 
--- تشغيل الحركات
-local bangSpeed = 1
-local suckSpeed = 1
-local bangTrack, suckTrack
-
-local function PlayAnim(animId, speed, which)
-    if not selectedPlayer or not selectedPlayer.Character then return end
-    local hum = selectedPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
-
-    if which == "bang" then
-        if bangTrack then pcall(function() bangTrack:Stop() end) end
-        local a = Instance.new("Animation")
-        a.AnimationId = animId
-        local ok, track = pcall(function() return hum:LoadAnimation(a) end)
-        if ok then
-            bangTrack = track
-            bangTrack:Play()
-            bangTrack:AdjustSpeed(speed)
-        end
-    else
-        if suckTrack then pcall(function() suckTrack:Stop() end) end
-        local a = Instance.new("Animation")
-        a.AnimationId = animId
-        local ok, track = pcall(function() return hum:LoadAnimation(a) end)
-        if ok then
-            suckTrack = track
-            suckTrack:Play()
-            suckTrack:AdjustSpeed(speed)
-        end
+makeLbl(t1, "سرعة المص/اللعق (1-300):")
+local spd2Box = makeTxt(t1, "1-300", function(txt)
+    local n = tonumber(txt)
+    if n and n >= 1 and n <= 300 then
+        CurrentSuckSpeed = n
     end
-end
+end)
+makeBtn(t1, "START - تثبيت سرعة المص/اللعق", function()
+    local n = tonumber(spd2Box.Text)
+    if n and n >= 1 and n <= 300 then
+        CurrentSuckSpeed = n
+    end
+end)
 
-bangBtn.MouseButton1Click:Connect(function() PlayAnim(BANG_ANIM, bangSpeed, "bang") end)
-bangFwdBtn.MouseButton1Click:Connect(function() PlayAnim(SUCK_ANIM, suckSpeed, "suck") end)
-
--- ═══════════════════════════════════════════════════════
--- TAB 2 : أوامر انفنتي
--- ═══════════════════════════════════════════════════════
-local cmdsTab = MakeTab("أوامر انفنتي")
-local commands = {
+-- ============ TAB 2: أوامر انفنتي ============
+local t2 = createTab("أوامر انفنتي")
+local cmds = {
     "2022materials", "clearerror", "antilag", "xray",
     "antiafk", "antikick", "backtrack nan", "backtrack 999",
     "datalimit 660", "autokeypress nan", "autokeypress",
     "Replicationlag 999", "nofog"
 }
-for _, cmd in ipairs(commands) do
-    MakeButton(cmdsTab, "📋  " .. cmd, function()
-        pcall(function()
-            if setclipboard then setclipboard(cmd) end
-        end)
+for _, cmd in ipairs(cmds) do
+    makeBtn(t2, cmd, function()
+        pcall(setclipboard, cmd)
+        local old = t2.Parent
     end)
 end
 
--- ═══════════════════════════════════════════════════════
--- TAB 3 : سكربتات تحسين (بدون مكرر)
--- ═══════════════════════════════════════════════════════
-local optTab = MakeTab("سكربتات تحسين")
-local optScripts = {
-    { name = "Optimizer v1",  url = "https://pastebin.com/raw/trEyCGm1" },
-    { name = "3skr Hub",      url = "https://scriptblox.com/raw/Universal-Script-3skr-hub-240428" },
-    { name = "Optimizer v2",  url = "https://pastebin.com/raw/HMEBL5Y7" },
-    { name = "Optimizer v3",  url = "https://pastebin.com/raw/SVBWBNMN" },
-    { name = "Optimizer v4",  url = "https://pastebin.com/raw/jNBy9uhB" },
+-- ============ TAB 3: سكربتات تحسين ============
+local t3 = createTab("سكربتات تحسين")
+local improvements = {
+    { name = "Script 1 - Pastebin trEyCGm1", url = "https://pastebin.com/raw/trEyCGm1" },
+    { name = "Universal 3skr Hub",            url = "https://scriptblox.com/raw/Universal-Script-3skr-hub-240428" },
+    { name = "Script 2 - Pastebin HMEBL5Y7",  url = "https://pastebin.com/raw/HMEBL5Y7" },
+    { name = "Script 3 - Pastebin SVBWBNMN",  url = "https://pastebin.com/raw/SVBWBNMN" },
+    { name = "Script 4 - Pastebin jNBy9uhB",  url = "https://pastebin.com/raw/jNBy9uhB" },
 }
-for _, s in ipairs(optScripts) do
-    MakeButton(optTab, "▶  " .. s.name, function()
-        pcall(function()
-            loadstring(game:HttpGet(s.url))()
-        end)
-    end)
-end
-
--- ═══════════════════════════════════════════════════════
--- TAB 4 : سكربتات خاصه
--- ═══════════════════════════════════════════════════════
-local privTab = MakeTab("سكربتات خاصه")
-local privScripts = {
-    { name = "Private 1",      url = "https://pastefy.app/mXMaE9fC/raw" },
-    { name = "MADARA x CATAY", url = "https://raw.githubusercontent.com/MADARA9223/AL7FRAA-MADARAxCATAY/refs/heads/main/AL7FRAA%20%7C%20MADARAxCATAYxROBERTO" },
-    { name = "Private 2",      url = "https://pastebin.com/raw/JEUtzDyu" },
-    { name = "AL-QYADAH F7LK", url = "https://raw.githubusercontent.com/professor-f7lk/AL-QYADAHF7LK-/refs/heads/main/README.md" },
-    { name = "Private 3",      url = "https://pastebin.com/raw/mAtRSqbu" },
-    { name = "Private 4",      url = "https://pastefy.app/WhGd80IZ/raw" },
-    { name = "GAROU XR7",      url = "https://scriptblox.com/raw/Universal-Script-GAROU-XR7-230829" },
-    { name = "Kaize25KP",      url = "https://encrypt-x.pages.dev/Scripts?Id=Kaize25KP", param = "Kaize25KP" },
-}
-for _, s in ipairs(privScripts) do
-    MakeButton(privTab, "▶  " .. s.name, function()
-        pcall(function()
-            if s.param then
-                loadstring(game:HttpGet(s.url))(s.param)
-            else
+for _, s in ipairs(improvements) do
+    makeBtn(t3, s.name, function()
+        task.spawn(function()
+            local ok, err = pcall(function()
                 loadstring(game:HttpGet(s.url))()
+            end)
+            if not ok then warn("REDZ HUB | Script error: " .. tostring(err)) end
+        end)
+    end)
+end
+
+-- ============ TAB 4: سكربتات خاصه ============
+local t4 = createTab("سكربتات خاصه")
+local specials = {
+    { name = "Script 1 - Pastefy mXMaE9fC",       url = "https://pastefy.app/mXMaE9fC/raw" },
+    { name = "AL7FRAA MADARA Hub",                 url = "https://raw.githubusercontent.com/MADARA9223/AL7FRAA-MADARAxCATAY/refs/heads/main/AL7FRAA%20%7C%20MADARAxCATAYxROBERTO" },
+    { name = "Script 2 - Pastebin JEUtzDyu",       url = "https://pastebin.com/raw/JEUtzDyu" },
+    { name = "AL-QYADAH F7LK",                     url = "https://raw.githubusercontent.com/professor-f7lk/AL-QYADAHF7LK-/refs/heads/main/README.md" },
+    { name = "Script 3 - Pastebin mAtRSqbu",       url = "https://pastebin.com/raw/mAtRSqbu" },
+    { name = "Script 4 - Pastefy WhGd80IZ",        url = "https://pastefy.app/WhGd80IZ/raw" },
+    { name = "GAROU XR7",                          url = "https://scriptblox.com/raw/Universal-Script-GAROU-XR7-230829" },
+    { name = "Kaize25 KP Hub",                     url = "https://encrypt-x.pages.dev/Scripts?Id=Kaize25KP" },
+}
+for _, s in ipairs(specials) do
+    makeBtn(t4, s.name, function()
+        task.spawn(function()
+            local ok, err = pcall(function()
+                if s.url:find("encrypt%-x") then
+                    loadstring(game:HttpGet(s.url))("Kaize25KP")
+                else
+                    loadstring(game:HttpGet(s.url))()
+                end
+            end)
+            if not ok then warn("REDZ HUB | Script error: " .. tostring(err)) end
+        end)
+    end)
+end
+
+-- ============ TAB 5: رتب ============
+local t5 = createTab("رتب")
+
+local ranks = {
+    { name = "👑 مالك السكربت", password = "omar",   key = "owner" },
+    { name = "⭐ ادمن",         password = "scopa",  key = "admin" },
+    { name = "🔰 صملاوي (تلقائي بعد 50 ساعة)", password = nil, key = "free" },
+}
+
+local function activateRank(rankKey)
+    if rankKey == "free" then
+        if getHoursActive() >= 50 then
+            return true
+        end
+        return false
+    end
+    pcall(writefile, "RedzHub/rank_" .. rankKey .. ".txt", "1")
+    return true
+end
+
+local function checkRank(rankKey)
+    if rankKey == "free" then return getHoursActive() >= 50 end
+    return isfile("RedzHub/rank_" .. rankKey .. ".txt")
+end
+
+for _, r in ipairs(ranks) do
+    makeLbl(t5, r.name, 26, C.Acc2)
+    if r.password then
+        local pwBox = makeTxt(t5, "كلمة السر")
+        makeBtn(t5, "START - تفعيل", function()
+            if pwBox.Text == r.password then
+                activateRank(r.key)
+                pwBox.Text = "✅ تم التفعيل"
+                pwBox.TextColor3 = C.Green
+            else
+                pwBox.Text = "❌ كلمة سر خاطئة"
+                pwBox.TextColor3 = C.Acc2
             end
         end)
+    else
+        makeBtn(t5, "التحقق من الحالة", function()
+            if checkRank(r.key) then
+                makeLbl(t5, "✅ الرتبة مفعلة - " .. math.floor(getHoursActive()) .. "h", 22, C.Green)
+            else
+                local remain = 50 - getHoursActive()
+                makeLbl(t5, "⏳ باقي " .. string.format("%.1f", remain) .. " ساعة", 22, C.Yellow)
+            end
+        end)
+    end
+end
+
+-- ============ TAB 6: حقوق ============
+local t6 = createTab("حقوق")
+makeLbl(t6, "📱 تيك توك: w_.0.10", 30, C.Acc2)
+makeLbl(t6, "💬 ديسكورد: 9z_e.1", 30, C.Acc2)
+makeLbl(t6, "─────────────────", 20)
+makeLbl(t6, "🔒 السكربت محمي من قبل 𝒍𝒂𝒏𝒔𝒉𝒆𝒓", 22, C.Yellow)
+makeLbl(t6, "لا يمكن استخدامه إلا أصدقاء 𝒍𝒂𝒏𝒔𝒉𝒆𝒓", 22, C.Txt)
+makeLbl(t6, "أو أصدقاء 𝒔𝒍𝒂𝒏𝒅𝒆𝒓", 22, C.Txt)
+makeLbl(t6, "و 𝐴𝑆 وأصدقائهم ❌", 22, C.Acc2)
+
+-- ============ OPEN DEFAULT TAB ============
+tabs["بانق GG"].btn:Fire("MouseButton1Click")
+-- fix: manually set visible
+for _, t in pairs(tabs) do t.page.Visible = false end
+tabs["بانق GG"].btn.BackgroundColor3 = C.Acc
+tabs["بانق GG"].btn.TextColor3 = C.Txt
+tabs["بانق GG"].page.Visible = true
+
+-- ============ PLAYER SEARCH ============
+local function findPlayer(prefix)
+    if #prefix < 3 then return nil end
+    prefix = string.lower(prefix)
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and string.sub(string.lower(p.Name), 1, #prefix) == prefix then
+            return p
+        end
+    end
+    return nil
+end
+
+local function fmtTime(sec)
+    sec = math.floor(sec)
+    return string.format("%02d:%02d:%02d", math.floor(sec/3600), math.floor(sec%3600/60), sec%60)
+end
+
+local function updateTimerDisplay()
+    if tracked.active then
+        timerLbl.Text = "⏱ " .. fmtTime(tracked.totalTime + (tick() - tracked.sessionStart))
+    else
+        timerLbl.Text = "⏱ " .. fmtTime(tracked.totalTime)
+    end
+    exitLbl.Text = "خروج: " .. tracked.exits
+    entryLbl.Text = "دخول: " .. tracked.entries
+end
+
+RunService.Heartbeat:Connect(updateTimerDisplay)
+
+local function selectTarget(player)
+    TargetPlayer = player
+    tracked.userId = player.UserId
+    tracked.name = player.Name
+    tracked.totalTime = 0
+    tracked.sessionStart = tick()
+    tracked.active = true
+    tracked.exits = 0
+    tracked.entries = 1
+    nameLbl.Text = player.Name
+    task.spawn(function()
+        local ok, img = pcall(function()
+            return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+        end)
+        if ok and img then profPic.Image = img end
     end)
 end
 
--- ═══════════════════════════════════════════════════════
--- TAB 5 : رتب
--- ═══════════════════════════════════════════════════════
-local rankTab = MakeTab("رتب")
-
-MakeLabel(rankTab, "👑 رتبة (مالك السكربت)", Color3.fromRGB(255, 200, 50))
-local ownerBox = MakeTextbox(rankTab, "كلمة السر...")
-local ownerStatus = MakeLabel(rankTab, "الحالة: غير مفعّلة", Color3.fromRGB(200, 100, 100))
-MakeButton(rankTab, "تفعيل رتبة المالك", function()
-    if ownerBox.Text == OWNER_PASS then
-        RANK = "owner"
-        ownerStatus.Text = "الحالة: ✅ مفعّلة (مالك)"
-        ownerStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local txt = searchBox.Text
+    if #txt < 3 then return end
+    local found = findPlayer(txt)
+    if found then
+        if TargetPlayer ~= found then selectTarget(found) end
+    else
+        nameLbl.Text = "لا يوجد لاعب مطابق"
     end
-    ownerBox.Text = ""
 end)
 
-MakeLabel(rankTab, "🛡️ رتبة (ادمن)", Color3.fromRGB(100, 200, 255))
-local adminBox = MakeTextbox(rankTab, "كلمة السر...")
-local adminStatus = MakeLabel(rankTab, "الحالة: غير مفعّلة", Color3.fromRGB(200, 100, 100))
-MakeButton(rankTab, "تفعيل رتبة ادمن", function()
-    if adminBox.Text == ADMIN_PASS then
-        RANK = "admin"
-        adminStatus.Text = "الحالة: ✅ مفعّلة (ادمن)"
-        adminStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
-    end
-    adminBox.Text = ""
-end)
-
-MakeLabel(rankTab, "⭐ رتبة (صملاوي) — تتطلب 50 ساعة متواصلة", Color3.fromRGB(255, 100, 200))
-local samlawiStatus = MakeLabel(rankTab, "الوقت: 00:00:00 / 50:00:00", Color3.fromRGB(200, 200, 220))
-task.spawn(function()
-    while true do
-        task.wait(1)
-        local t = tick() - USAGE_START
-        samlawiStatus.Text = "الوقت: " .. FormatTime(t) .. " / 50:00:00"
-        if t >= 50 * 3600 and RANK == "none" then
-            RANK = "samlawi"
-            samlawiStatus.Text = "✅ رتبة صملاوي مفعّلة!"
-            samlawiStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+Players.PlayerRemoving:Connect(function(p)
+    if tracked.userId == p.UserId then
+        if tracked.active then
+            tracked.totalTime = tracked.totalTime + (tick() - tracked.sessionStart)
+            tracked.active = false
         end
+        tracked.exits = tracked.exits + 1
     end
 end)
 
--- ═══════════════════════════════════════════════════════
--- TAB 6 : حقوق
--- ═══════════════════════════════════════════════════════
-local creditsTab = MakeTab("حقوق")
-MakeLabel(creditsTab, "📱 تيك توك: w_.0.10",     Color3.fromRGB(200, 200, 255))
-MakeLabel(creditsTab, "💬 دسكورد: 9z_e.1",       Color3.fromRGB(150, 200, 255))
-MakeLabel(creditsTab, "")
-MakeLabel(creditsTab, "🛡️ محمي من قبل 𝒍𝒂𝒏𝒔𝒉𝒆𝒓", Color3.fromRGB(255, 100, 150))
-MakeLabel(creditsTab, "فقط لأصدقاء 𝒍𝒂𝒏𝒔𝒉𝒆𝒓 و 𝒔𝒍𝒂𝒏𝒅𝒆𝒓", Color3.fromRGB(255, 150, 150))
-MakeLabel(creditsTab, "ولا ننسى كسم AS وأصدقائهم ❤️", Color3.fromRGB(200, 150, 255))
+Players.PlayerAdded:Connect(function(p)
+    if tracked.userId == p.UserId then
+        tracked.sessionStart = tick()
+        tracked.active = true
+        tracked.entries = tracked.entries + 1
+    end
+end)
 
--- ═══════════════════════════════════════════════════════
--- تفعيل التاب الأول تلقائياً
--- ═══════════════════════════════════════════════════════
-local first = Tabs["بانق GG"]
-if first then
-    first.Button.BackgroundColor3 = Color3.fromRGB(150, 50, 255)
-    first.Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    first.Frame.Visible = true
+-- ============ BANG LOGIC ============
+function triggerBang(forward)
+    if not TargetPlayer or not TargetPlayer.Character then return end
+    if not LocalPlayer.Character then return end
+
+    local myHum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    local tgtHum = TargetPlayer.Character:FindFirstChildOfClass("Humanoid")
+    local myHrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local tgtHrp = TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not (myHum and tgtHum and myHrp and tgtHrp) then return end
+
+    -- Stop previous
+    if bangTrackA then pcall(function() bangTrackA:Stop() end) end
+    if bangTrackB then pcall(function() bangTrackB:Stop() end) end
+
+    local animId = forward and ANIMS.BangForward or ANIMS.BangBehind
+    local speed = forward and CurrentSuckSpeed or CurrentBangSpeed
+
+    local anim = Instance.new("Animation")
+    anim.AnimationId = animId
+
+    local okA = pcall(function()
+        bangTrackA = myHum:LoadAnimation(anim)
+        bangTrackA:Play()
+        bangTrackA:AdjustSpeed(speed)
+    end)
+    local okB = pcall(function()
+        bangTrackB = tgtHum:LoadAnimation(anim)
+        bangTrackB:Play()
+        bangTrackB:AdjustSpeed(speed)
+    end)
+
+    activeTrack = bangTrackA
+    isBangActive = true
+
+    -- Position (behind vs forward)
+    local offset = forward and CFrame.new(0, 0, -1.5) or CFrame.new(0, 0, 1.5)
+    pcall(function()
+        myHrp.CFrame = tgtHrp.CFrame * offset
+    end)
+
+    -- Face each other
+    task.spawn(function()
+        for _ = 1, 30 do
+            if not (myHrp and myHrp.Parent and tgtHrp and tgtHrp.Parent) then break end
+            local look = forward and tgtHrp.CFrame.LookVector or -tgtHrp.CFrame.LookVector
+            pcall(function()
+                myHrp.CFrame = CFrame.new(tgtHrp.Position + (forward and -look*1.5 or look*1.5), tgtHrp.Position)
+            end)
+            task.wait(0.1)
+        end
+    end)
 end
+
+-- ============ SCRIPT END ============
+print("[REDZ HUB] Loaded successfully | Protected by 𝒍𝒂𝒏𝒔𝒉𝒆𝒓")
