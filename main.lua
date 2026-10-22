@@ -1,648 +1,619 @@
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+--[[
+    ═══════════════════════════════════════════
+              REDZ HUB  |  by 𝒍𝒂𝒏𝒔𝒉𝒆𝒓
+    ═══════════════════════════════════════════
+    Protected by 𝒍𝒂𝒏𝒔𝒉𝒆𝒓
+    لا يمكن استخدامه إلا لأصدقاء 𝒍𝒂𝒏𝒔𝒉𝒆𝒓 و 𝒔𝒍𝒂𝒏𝒅𝒆𝒓
+]]
 
-if not game:IsLoaded() then game.Loaded:Wait() end
-task.wait(1)
+-- ═══════════════ SERVICES ═══════════════
+local Players           = game:GetService("Players")
+local UserInputService  = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")
 
-local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() and Players.LocalPlayer
+local LP = Players.LocalPlayer
 
-local isOpen = false
-local targetPlayer = nil
-local bangSpeed = 1
-local lickSpeed = 1
-local exitCount = 0
-local enterCount = 0
-local timerSeconds = 0
-local isTimerRunning = true
+-- ═══════════════ CONFIG ═══════════════
+local TOGGLE_IMG = "rbxassetid://134125667034392"
+local BG_IMG     = "rbxassetid://77924857384829"
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "REDZ_HUB"
-ScreenGui.ResetOnSpawn = false
+-- ⚠️ استبدل هذه الأي دي بأسكربتات الحركة الخاصة بك (البانق والمص)
+local BANG_ANIM = "rbxassetid://507771019"   -- ← ضع أي دي حركة البانق
+local SUCK_ANIM = "rbxassetid://507770239"   -- ← ضع أي دي حركة المص/اللعق
 
-local _guiParent
-local success, result = pcall(function() return gethui() end)
-if success and result then
-    _guiParent = result
-else
-    local success2, result2 = pcall(function() return game:GetService("CoreGui") end)
-    if success2 and result2 then
-        _guiParent = result2
-    else
-        _guiParent = LocalPlayer:WaitForChild("PlayerGui")
-    end
+local OWNER_PASS = "omar"
+local ADMIN_PASS = "scopa"
+
+local USAGE_START = tick()
+local RANK = "none"
+
+-- ═══════════════ CLEANUP OLD ═══════════════
+if game.CoreGui:FindFirstChild("REDZ_HUB") then
+    game.CoreGui.REDZ_HUB:Destroy()
 end
-ScreenGui.Parent = _guiParent
 
-local ToggleButton = Instance.new("ImageButton")
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Size = UDim2.new(0, 50, 0, 50)
-ToggleButton.Position = UDim2.new(0, 10, 0.5, -25)
-ToggleButton.AnchorPoint = Vector2.new(0, 0.5)
-ToggleButton.BackgroundTransparency = 1
-ToggleButton.Image = "rbxassetid://108720536583044"
-ToggleButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.ScaleType = Enum.ScaleType.Crop
-ToggleButton.ClipsDescendants = true
-ToggleButton.Parent = ScreenGui
+-- ═══════════════ MAIN GUI ═══════════════
+local SG = Instance.new("ScreenGui")
+SG.Name = "REDZ_HUB"
+SG.ResetOnSpawn = false
+SG.IgnoreGuiInset = true
+SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+SG.Parent = game.CoreGui
 
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(1, 0)
-ToggleCorner.Parent = ToggleButton
+-- ─── زر التفعيل ───
+local Toggle = Instance.new("ImageButton")
+Toggle.Name = "Toggle"
+Toggle.Size = UDim2.new(0, 60, 0, 60)
+Toggle.Position = UDim2.new(0, 20, 0, 300)
+Toggle.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+Toggle.Image = TOGGLE_IMG
+Toggle.BorderSizePixel = 0
+Toggle.ZIndex = 10
+Toggle.Parent = SG
+Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
+local tStroke = Instance.new("UIStroke", Toggle)
+tStroke.Color = Color3.fromRGB(150, 50, 255)
+tStroke.Thickness = 2
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 500, 0, 350)
-MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MainFrame.BorderSizePixel = 0
-MainFrame.Visible = false
-MainFrame.ClipsDescendants = true
-MainFrame.Parent = ScreenGui
+-- سحب زر التفعيل
+local dragT, tStart, tPos
+Toggle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragT = true; tStart = input.Position; tPos = Toggle.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragT = false end
+        end)
+    end
+end)
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = MainFrame
+-- ─── الواجهة الرئيسية ───
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.new(0, 620, 0, 440)
+Main.Position = UDim2.new(0.5, -310, 0.5, -220)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+Main.BorderSizePixel = 0
+Main.Visible = false
+Main.ZIndex = 5
+Main.Parent = SG
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+local mainStroke = Instance.new("UIStroke", Main)
+mainStroke.Color = Color3.fromRGB(150, 50, 255)
+mainStroke.Thickness = 1.5
 
-local WingsBackground = Instance.new("ImageLabel")
-WingsBackground.Name = "WingsBackground"
-WingsBackground.Size = UDim2.new(1, 0, 1, 0)
-WingsBackground.BackgroundTransparency = 1
-WingsBackground.Image = "rbxassetid://97350255821779"
-WingsBackground.ImageTransparency = 0.3
-WingsBackground.ScaleType = Enum.ScaleType.Crop
-WingsBackground.ZIndex = 1
-WingsBackground.Parent = MainFrame
+-- خلفية صورة
+local bgImg = Instance.new("ImageLabel", Main)
+bgImg.Size = UDim2.new(1, 0, 1, 0)
+bgImg.BackgroundTransparency = 1
+bgImg.Image = BG_IMG
+bgImg.ImageTransparency = 0.55
+bgImg.ScaleType = Enum.ScaleType.Crop
+bgImg.ZIndex = 5
+Instance.new("UICorner", bgImg).CornerRadius = UDim.new(0, 12)
 
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 35)
-TitleBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-TitleBar.BackgroundTransparency = 0.4
-TitleBar.ZIndex = 2
-TitleBar.Parent = MainFrame
+-- ─── الهيدر ───
+local Header = Instance.new("Frame", Main)
+Header.Size = UDim2.new(1, 0, 0, 45)
+Header.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+Header.BackgroundTransparency = 0.15
+Header.ZIndex = 6
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -70, 1, 0)
-TitleLabel.Position = UDim2.new(0, 10, 0, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "REDZ HUB | 𝒍𝒂𝒏𝒔𝒉𝒆𝒓"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextSize = 16
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.ZIndex = 3
-TitleLabel.Parent = TitleBar
+local Title = Instance.new("TextLabel", Header)
+Title.Size = UDim2.new(1, -100, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "REDZ HUB  |  𝒍𝒂𝒏𝒔𝒉𝒆𝒓"
+Title.TextColor3 = Color3.fromRGB(170, 80, 255)
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 20
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 6
 
-local CloseBtn = Instance.new("TextButton")
+local CloseBtn = Instance.new("TextButton", Header)
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -35, 0, 2)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+CloseBtn.Position = UDim2.new(1, -38, 0, 7)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.ZIndex = 3
-CloseBtn.Parent = TitleBar
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 5)
-CloseCorner.Parent = CloseBtn
+CloseBtn.TextSize = 16
+CloseBtn.ZIndex = 6
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+CloseBtn.MouseButton1Click:Connect(function() Main.Visible = false end)
 
-local TabList = Instance.new("Frame")
-TabList.Size = UDim2.new(0, 130, 1, -45)
-TabList.Position = UDim2.new(0, 5, 0, 40)
-TabList.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-TabList.BackgroundTransparency = 0.5
-TabList.ZIndex = 2
-TabList.Parent = MainFrame
-local TabListCorner = Instance.new("UICorner")
-TabListCorner.CornerRadius = UDim.new(0, 5)
-TabListCorner.Parent = TabList
-
-local TabListLayout = Instance.new("UIListLayout")
-TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-TabListLayout.Padding = UDim.new(0, 5)
-TabListLayout.Parent = TabList
-
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -145, 1, -45)
-ContentFrame.Position = UDim2.new(0, 140, 0, 40)
-ContentFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-ContentFrame.BackgroundTransparency = 0.5
-ContentFrame.ZIndex = 2
-ContentFrame.Parent = MainFrame
-local ContentCorner = Instance.new("UICorner")
-ContentCorner.CornerRadius = UDim.new(0, 5)
-ContentCorner.Parent = ContentFrame
-
-local function CreateTab(name, text)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    btn.BackgroundTransparency = 0.3
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 13
-    btn.ZIndex = 3
-    btn.Parent = TabList
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 5)
-    corner.Parent = btn
-    
-    local frame = Instance.new("ScrollingFrame")
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundTransparency = 1
-    frame.Visible = false
-    frame.ZIndex = 3
-    frame.Parent = ContentFrame
-    frame.CanvasSize = UDim2.new(0, 0, 0, 1000)
-    frame.ScrollBarThickness = 4
-    
-    btn.MouseButton1Click:Connect(function()
-        for _, v in pairs(TabList:GetChildren()) do
-            if v:IsA("TextButton") then v.BackgroundColor3 = Color3.fromRGB(40, 40, 40) end
-        end
-        for _, v in pairs(ContentFrame:GetChildren()) do
-            if v:IsA("ScrollingFrame") then v.Visible = false end
-        end
-        btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-        frame.Visible = true
-    end)
-    
-    return frame, btn
-end
-
-local BangTab, BangBtn = CreateTab("Bang", "بانق GG")
-BangBtn.LayoutOrder = 1
-
-local SearchBox = Instance.new("TextBox")
-SearchBox.Size = UDim2.new(0.9, 0, 0, 30)
-SearchBox.Position = UDim2.new(0.05, 0, 0, 10)
-SearchBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-SearchBox.BackgroundTransparency = 0.2
-SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-SearchBox.PlaceholderText = "اول 3 احرف من اسم الشخص..."
-SearchBox.ZIndex = 4
-SearchBox.Parent = BangTab
-
-local InfoFrame = Instance.new("Frame")
-InfoFrame.Size = UDim2.new(0.9, 0, 0, 80)
-InfoFrame.Position = UDim2.new(0.05, 0, 0, 50)
-InfoFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-InfoFrame.BackgroundTransparency = 0.2
-InfoFrame.ZIndex = 3
-InfoFrame.Parent = BangTab
-
-local PlayerImage = Instance.new("ImageLabel")
-PlayerImage.Size = UDim2.new(0, 60, 0, 60)
-PlayerImage.Position = UDim2.new(0, 10, 0, 10)
-PlayerImage.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-PlayerImage.Image = "rbxassetid://0"
-PlayerImage.ZIndex = 4
-PlayerImage.Parent = InfoFrame
-local PlayerImageCorner = Instance.new("UICorner")
-PlayerImageCorner.CornerRadius = UDim.new(0, 8)
-PlayerImageCorner.Parent = PlayerImage
-
-local PlayerNameLabel = Instance.new("TextLabel")
-PlayerNameLabel.Size = UDim2.new(1, -80, 0, 20)
-PlayerNameLabel.Position = UDim2.new(0, 80, 0, 10)
-PlayerNameLabel.BackgroundTransparency = 1
-PlayerNameLabel.Text = "اسم اللاعب: لا يوجد"
-PlayerNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-PlayerNameLabel.Font = Enum.Font.Gotham
-PlayerNameLabel.TextSize = 14
-PlayerNameLabel.TextXAlignment = Enum.TextXAlignment.Left
-PlayerNameLabel.ZIndex = 4
-PlayerNameLabel.Parent = InfoFrame
-
-local ExitLabel = Instance.new("TextLabel")
-ExitLabel.Size = UDim2.new(0.45, 0, 0, 20)
-ExitLabel.Position = UDim2.new(0.05, 0, 0, 140)
-ExitLabel.BackgroundTransparency = 1
-ExitLabel.Text = "خروج: 0"
-ExitLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-ExitLabel.Font = Enum.Font.Gotham
-ExitLabel.TextSize = 14
-ExitLabel.TextXAlignment = Enum.TextXAlignment.Left
-ExitLabel.ZIndex = 3
-ExitLabel.Parent = BangTab
-
-local EnterLabel = Instance.new("TextLabel")
-EnterLabel.Size = UDim2.new(0.45, 0, 0, 20)
-EnterLabel.Position = UDim2.new(0.05, 0, 0, 170)
-EnterLabel.BackgroundTransparency = 1
-EnterLabel.Text = "دخول: 0"
-EnterLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-EnterLabel.Font = Enum.Font.Gotham
-EnterLabel.TextSize = 14
-EnterLabel.TextXAlignment = Enum.TextXAlignment.Left
-EnterLabel.ZIndex = 3
-EnterLabel.Parent = BangTab
-
-local TimerLabel = Instance.new("TextLabel")
-TimerLabel.Size = UDim2.new(0.45, 0, 0, 20)
-TimerLabel.Position = UDim2.new(0.5, 0, 0, 140)
-TimerLabel.BackgroundTransparency = 1
-TimerLabel.Text = "00:00:00"
-TimerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TimerLabel.Font = Enum.Font.GothamBold
-TimerLabel.TextSize = 14
-TimerLabel.TextXAlignment = Enum.TextXAlignment.Left
-TimerLabel.ZIndex = 3
-TimerLabel.Parent = BangTab
-
-local BangActionBtn = Instance.new("TextButton")
-BangActionBtn.Size = UDim2.new(0.4, 0, 0, 35)
-BangActionBtn.Position = UDim2.new(0.05, 0, 0, 210)
-BangActionBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-BangActionBtn.Text = "BANG"
-BangActionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-BangActionBtn.Font = Enum.Font.GothamBold
-BangActionBtn.ZIndex = 4
-BangActionBtn.Parent = BangTab
-
-local BangForwardBtn = Instance.new("TextButton")
-BangForwardBtn.Size = UDim2.new(0.4, 0, 0, 35)
-BangForwardBtn.Position = UDim2.new(0.55, 0, 0, 210)
-BangForwardBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 200)
-BangForwardBtn.Text = "BANG FORWARD"
-BangForwardBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-BangForwardBtn.Font = Enum.Font.GothamBold
-BangForwardBtn.ZIndex = 4
-BangForwardBtn.Parent = BangTab
-
-local BangSpeedBox = Instance.new("TextBox")
-BangSpeedBox.Size = UDim2.new(0.3, 0, 0, 30)
-BangSpeedBox.Position = UDim2.new(0.05, 0, 0, 270)
-BangSpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-BangSpeedBox.BackgroundTransparency = 0.2
-BangSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-BangSpeedBox.PlaceholderText = "1 - 300"
-BangSpeedBox.Text = "1"
-BangSpeedBox.ZIndex = 4
-BangSpeedBox.Parent = BangTab
-
-local BangSpeedBtn = Instance.new("TextButton")
-BangSpeedBtn.Size = UDim2.new(0.4, 0, 0, 30)
-BangSpeedBtn.Position = UDim2.new(0.35, 0, 0, 270)
-BangSpeedBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-BangSpeedBtn.BackgroundTransparency = 0.3
-BangSpeedBtn.Text = "START / ابدأ"
-BangSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-BangSpeedBtn.Font = Enum.Font.Gotham
-BangSpeedBtn.ZIndex = 4
-BangSpeedBtn.Parent = BangTab
-
-local LickSpeedBox = Instance.new("TextBox")
-LickSpeedBox.Size = UDim2.new(0.3, 0, 0, 30)
-LickSpeedBox.Position = UDim2.new(0.05, 0, 0, 320)
-LickSpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-LickSpeedBox.BackgroundTransparency = 0.2
-LickSpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-LickSpeedBox.PlaceholderText = "1 - 300"
-LickSpeedBox.Text = "1"
-LickSpeedBox.ZIndex = 4
-LickSpeedBox.Parent = BangTab
-
-local LickSpeedBtn = Instance.new("TextButton")
-LickSpeedBtn.Size = UDim2.new(0.4, 0, 0, 30)
-LickSpeedBtn.Position = UDim2.new(0.35, 0, 0, 320)
-LickSpeedBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-LickSpeedBtn.BackgroundTransparency = 0.3
-LickSpeedBtn.Text = "START / ابدأ"
-LickSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-LickSpeedBtn.Font = Enum.Font.Gotham
-LickSpeedBtn.ZIndex = 4
-LickSpeedBtn.Parent = BangTab
-
-SearchBox.FocusLost:Connect(function()
-    local search = string.lower(SearchBox.Text)
-    if #search >= 3 then
-        for _, p in pairs(Players:GetPlayers()) do
-            if string.sub(string.lower(p.Name), 1, 3) == search or string.sub(string.lower(p.DisplayName), 1, 3) == search then
-                targetPlayer = p
-                PlayerNameLabel.Text = "اللاعب: " .. p.Name
-                local thumb = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
-                PlayerImage.Image = thumb
-                break
-            end
-        end
+-- سحب الواجهة
+local dragM, mStart, mPos
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragM = true; mStart = input.Position; mPos = Main.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragM = false end
+        end)
     end
 end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragM and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local d = input.Position - mStart
+        Main.Position = UDim2.new(mPos.X.Scale, mPos.X.Offset + d.X, mPos.Y.Scale, mPos.Y.Offset + d.Y)
+    end
+    if dragT and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local d = input.Position - tStart
+        Toggle.Position = UDim2.new(tPos.X.Scale, tPos.X.Offset + d.X, tPos.Y.Scale, tPos.Y.Offset + d.Y)
+    end
+end)
+
+Toggle.MouseButton1Click:Connect(function()
+    Main.Visible = not Main.Visible
+end)
+
+-- ─── شريط التابات ───
+local TabBar = Instance.new("Frame", Main)
+TabBar.Size = UDim2.new(0, 135, 1, -55)
+TabBar.Position = UDim2.new(0, 5, 0, 50)
+TabBar.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+TabBar.BackgroundTransparency = 0.25
+TabBar.ZIndex = 6
+Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 8)
+local tList = Instance.new("UIListLayout", TabBar)
+tList.Padding = UDim.new(0, 4)
+tList.SortOrder = Enum.SortOrder.LayoutOrder
+local tPad = Instance.new("UIPadding", TabBar)
+tPad.PaddingTop = UDim.new(0, 4)
+tPad.PaddingLeft = UDim.new(0, 4)
+tPad.PaddingRight = UDim.new(0, 4)
+
+-- ─── منطقة المحتوى ───
+local Content = Instance.new("Frame", Main)
+Content.Size = UDim2.new(1, -150, 1, -60)
+Content.Position = UDim2.new(0, 145, 0, 52)
+Content.BackgroundTransparency = 1
+Content.ZIndex = 6
+
+-- ═══════════════ HELPERS ═══════════════
+local Tabs = {}
+
+local function MakeTab(name)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(200, 200, 220)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.ZIndex = 7
+    btn.Parent = TabBar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    local scroll = Instance.new("ScrollingFrame", Content)
+    scroll.Size = UDim2.new(1, 0, 1, 0)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel = 0
+    scroll.Visible = false
+    scroll.ScrollBarThickness = 3
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(150, 50, 255)
+    scroll.ZIndex = 6
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+    local pad = Instance.new("UIPadding", scroll)
+    pad.PaddingRight = UDim.new(0, 6)
+    local ll = Instance.new("UIListLayout", scroll)
+    ll.Padding = UDim.new(0, 5)
+    ll.SortOrder = Enum.SortOrder.LayoutOrder
+    ll:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        scroll.CanvasSize = UDim2.new(0, 0, 0, ll.AbsoluteContentSize.Y + 10)
+    end)
+
+    Tabs[name] = { Button = btn, Frame = scroll }
+    btn.MouseButton1Click:Connect(function()
+        for _, t in pairs(Tabs) do
+            t.Button.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+            t.Button.TextColor3 = Color3.fromRGB(200, 200, 220)
+            t.Frame.Visible = false
+        end
+        btn.BackgroundColor3 = Color3.fromRGB(150, 50, 255)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        scroll.Visible = true
+    end)
+    return scroll
+end
+
+local function MakeButton(parent, text, callback)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, 0, 0, 32)
+    b.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    b.Text = text
+    b.TextColor3 = Color3.fromRGB(220, 220, 240)
+    b.Font = Enum.Font.GothamSemibold
+    b.TextSize = 13
+    b.ZIndex = 7
+    b.Parent = parent
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    b.MouseButton1Click:Connect(callback)
+    return b
+end
+
+local function MakeLabel(parent, text, color)
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1, 0, 0, 26)
+    l.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+    l.Text = text
+    l.TextColor3 = color or Color3.fromRGB(200, 200, 220)
+    l.Font = Enum.Font.Gotham
+    l.TextSize = 12
+    l.ZIndex = 7
+    l.Parent = parent
+    Instance.new("UICorner", l).CornerRadius = UDim.new(0, 4)
+    return l
+end
+
+local function MakeTextbox(parent, placeholder)
+    local t = Instance.new("TextBox")
+    t.Size = UDim2.new(1, 0, 0, 32)
+    t.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    t.Text = ""
+    t.PlaceholderText = placeholder or ""
+    t.PlaceholderColor3 = Color3.fromRGB(120, 120, 150)
+    t.TextColor3 = Color3.fromRGB(220, 220, 240)
+    t.Font = Enum.Font.Gotham
+    t.TextSize = 13
+    t.ZIndex = 7
+    t.Parent = parent
+    Instance.new("UICorner", t).CornerRadius = UDim.new(0, 6)
+    return t
+end
+
+local function FormatTime(s)
+    s = math.max(0, math.floor(s))
+    return string.format("%02d:%02d:%02d", math.floor(s/3600), math.floor((s%3600)/60), s%60)
+end
+
+-- ═══════════════ تتبع إحصائيات اللاعبين ═══════════════
+local PlayerStats = {}
+
+local function InitStats(p)
+    if PlayerStats[p] then return end
+    PlayerStats[p] = { entries = 0, exits = 0, totalTime = 0, lastEnter = 0, inGame = false }
+end
+
+local function OnEnter(p)
+    InitStats(p)
+    local s = PlayerStats[p]
+    if not s.inGame then
+        s.entries = s.entries + 1
+        s.inGame = true
+        s.lastEnter = tick()
+    end
+end
+
+local function OnExit(p)
+    local s = PlayerStats[p]
+    if s and s.inGame then
+        s.exits = s.exits + 1
+        s.totalTime = s.totalTime + (tick() - s.lastEnter)
+        s.inGame = false
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    InitStats(p)
+    if p.Character then OnEnter(p) end
+    p.CharacterAdded:Connect(function() OnEnter(p) end)
+    p.CharacterRemoving:Connect(function() OnExit(p) end)
+end
+Players.PlayerAdded:Connect(function(p)
+    InitStats(p)
+    p.CharacterAdded:Connect(function() OnEnter(p) end)
+    p.CharacterRemoving:Connect(function() OnExit(p) end)
+end)
+Players.PlayerRemoving:Connect(OnExit)
+
+-- ═══════════════════════════════════════════════════════
+-- TAB 1 : بانق GG
+-- ═══════════════════════════════════════════════════════
+local bangTab = MakeTab("بانق GG")
+
+local searchBox = MakeTextbox(bangTab, "اكتب أول 3 أحرف من اسم اللاعب...")
+
+-- لوحة معلومات اللاعب
+local infoFrame = Instance.new("Frame", bangTab)
+infoFrame.Size = UDim2.new(1, 0, 0, 115)
+infoFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+infoFrame.ZIndex = 7
+Instance.new("UICorner", infoFrame).CornerRadius = UDim.new(0, 8)
+
+local avatarImg = Instance.new("ImageLabel", infoFrame)
+avatarImg.Size = UDim2.new(0, 85, 0, 85)
+avatarImg.Position = UDim2.new(0, 10, 0, 15)
+avatarImg.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+avatarImg.ZIndex = 8
+Instance.new("UICorner", avatarImg).CornerRadius = UDim.new(0, 8)
+
+local nameLbl = Instance.new("TextLabel", infoFrame)
+nameLbl.Size = UDim2.new(1, -110, 0, 24)
+nameLbl.Position = UDim2.new(0, 105, 0, 10)
+nameLbl.BackgroundTransparency = 1
+nameLbl.Text = "لا يوجد لاعب محدد"
+nameLbl.TextColor3 = Color3.fromRGB(170, 80, 255)
+nameLbl.Font = Enum.Font.GothamBold
+nameLbl.TextSize = 14
+nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+nameLbl.ZIndex = 8
+
+local exitLbl = Instance.new("TextLabel", infoFrame)
+exitLbl.Size = UDim2.new(0, 110, 0, 20)
+exitLbl.Position = UDim2.new(0, 105, 0, 38)
+exitLbl.BackgroundTransparency = 1
+exitLbl.Text = "خروج: 0"
+exitLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+exitLbl.Font = Enum.Font.Gotham
+exitLbl.TextSize = 12
+exitLbl.TextXAlignment = Enum.TextXAlignment.Left
+exitLbl.ZIndex = 8
+
+local entryLbl = Instance.new("TextLabel", infoFrame)
+entryLbl.Size = UDim2.new(0, 110, 0, 20)
+entryLbl.Position = UDim2.new(0, 220, 0, 38)
+entryLbl.BackgroundTransparency = 1
+entryLbl.Text = "دخول: 0"
+entryLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
+entryLbl.Font = Enum.Font.Gotham
+entryLbl.TextSize = 12
+entryLbl.TextXAlignment = Enum.TextXAlignment.Left
+entryLbl.ZIndex = 8
+
+local timerLbl = Instance.new("TextLabel", infoFrame)
+timerLbl.Size = UDim2.new(1, -115, 0, 22)
+timerLbl.Position = UDim2.new(0, 105, 0, 62)
+timerLbl.BackgroundTransparency = 1
+timerLbl.Text = "الوقت: 00:00:00"
+timerLbl.TextColor3 = Color3.fromRGB(200, 200, 255)
+timerLbl.Font = Enum.Font.GothamBold
+timerLbl.TextSize = 13
+timerLbl.TextXAlignment = Enum.TextXAlignment.Left
+timerLbl.ZIndex = 8
+
+local function UpdateInfo()
+    if not selectedPlayer or not PlayerStats[selectedPlayer] then return end
+    local s = PlayerStats[selectedPlayer]
+    local t = s.totalTime
+    if s.inGame then t = t + (tick() - s.lastEnter) end
+    nameLbl.Text = selectedPlayer.Name .. "  (@" .. selectedPlayer.DisplayName .. ")"
+    exitLbl.Text = "خروج: " .. s.exits
+    entryLbl.Text = "دخول: " .. s.entries
+    timerLbl.Text = "الوقت: " .. FormatTime(t)
+end
 
 task.spawn(function()
     while true do
         task.wait(1)
-        if isTimerRunning and targetPlayer then
-            timerSeconds = timerSeconds + 1
-            local h = math.floor(timerSeconds / 3600)
-            local m = math.floor((timerSeconds % 3600) / 60)
-            local s = timerSeconds % 60
-            TimerLabel.Text = string.format("%02d:%02d:%02d", h, m, s)
+        UpdateInfo()
+    end
+end)
+
+-- أزرار الحركة (تظهر بعد اختيار لاعب)
+local bangBtn = MakeButton(bangTab, "BANG (من الخلف)", function() end)
+bangBtn.Visible = false
+
+local bangFwdBtn = MakeButton(bangTab, "BANG Forward (مص / لعق)", function() end)
+bangFwdBtn.Visible = false
+
+local bangSpeedBox = MakeTextbox(bangTab, "سرعة البانق (1 - 300)")
+bangSpeedBox.Visible = false
+local bangSpeedStart = MakeButton(bangTab, "▶ Start / ابدأ (سرعة البانق)", function()
+    local n = tonumber(bangSpeedBox.Text)
+    if n and n >= 1 and n <= 300 then
+        bangSpeed = n
+        if bangTrack then pcall(function() bangTrack:AdjustSpeed(n) end) end
+    end
+end)
+bangSpeedStart.Visible = false
+
+local suckSpeedBox = MakeTextbox(bangTab, "سرعة المص/اللعق (1 - 300)")
+suckSpeedBox.Visible = false
+local suckSpeedStart = MakeButton(bangTab, "▶ Start / ابدأ (سرعة المص)", function()
+    local n = tonumber(suckSpeedBox.Text)
+    if n and n >= 1 and n <= 300 then
+        suckSpeed = n
+        if suckTrack then pcall(function() suckTrack:AdjustSpeed(n) end) end
+    end
+end)
+suckSpeedStart.Visible = false
+
+local function ShowActionButtons(v)
+    bangBtn.Visible = v
+    bangFwdBtn.Visible = v
+    bangSpeedBox.Visible = v
+    bangSpeedStart.Visible = v
+    suckSpeedBox.Visible = v
+    suckSpeedStart.Visible = v
+end
+
+local function SelectPlayer(p)
+    selectedPlayer = p
+    pcall(function()
+        avatarImg.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+    end)
+    UpdateInfo()
+    ShowActionButtons(true)
+end
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local txt = string.lower(searchBox.Text)
+    if #txt < 1 then
+        selectedPlayer = nil
+        nameLbl.Text = "لا يوجد لاعب محدد"
+        ShowActionButtons(false)
+        return
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP and string.sub(string.lower(p.Name), 1, #txt) == txt then
+            SelectPlayer(p)
+            return
         end
     end
 end)
 
-Players.PlayerRemoving:Connect(function(plr)
-    if plr == targetPlayer then
-        exitCount = exitCount + 1
-        ExitLabel.Text = "خروج: " .. exitCount
-        isTimerRunning = false
-    end
-end)
+-- تشغيل الحركات
+local bangSpeed = 1
+local suckSpeed = 1
+local bangTrack, suckTrack
 
-Players.PlayerAdded:Connect(function(plr)
-    if targetPlayer and plr.UserId == targetPlayer.UserId then
-        enterCount = enterCount + 1
-        EnterLabel.Text = "دخول: " .. enterCount
-        isTimerRunning = true
-        targetPlayer = plr
-    end
-end)
+local function PlayAnim(animId, speed, which)
+    if not selectedPlayer or not selectedPlayer.Character then return end
+    local hum = selectedPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
 
-local function PlayAnimation()
-    if targetPlayer and targetPlayer.Character then
-        local humanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            local anim = Instance.new("Animation")
-            anim.AnimationId = "rbxassetid://507771019"
-            local track
-            local success, err = pcall(function()
-                track = humanoid:LoadAnimation(anim)
-            end)
-            if success and track then
-                track:Play()
-            end
+    if which == "bang" then
+        if bangTrack then pcall(function() bangTrack:Stop() end) end
+        local a = Instance.new("Animation")
+        a.AnimationId = animId
+        local ok, track = pcall(function() return hum:LoadAnimation(a) end)
+        if ok then
+            bangTrack = track
+            bangTrack:Play()
+            bangTrack:AdjustSpeed(speed)
+        end
+    else
+        if suckTrack then pcall(function() suckTrack:Stop() end) end
+        local a = Instance.new("Animation")
+        a.AnimationId = animId
+        local ok, track = pcall(function() return hum:LoadAnimation(a) end)
+        if ok then
+            suckTrack = track
+            suckTrack:Play()
+            suckTrack:AdjustSpeed(speed)
         end
     end
 end
 
-BangActionBtn.MouseButton1Click:Connect(PlayAnimation)
-BangForwardBtn.MouseButton1Click:Connect(PlayAnimation)
+bangBtn.MouseButton1Click:Connect(function() PlayAnim(BANG_ANIM, bangSpeed, "bang") end)
+bangFwdBtn.MouseButton1Click:Connect(function() PlayAnim(SUCK_ANIM, suckSpeed, "suck") end)
 
-BangSpeedBtn.MouseButton1Click:Connect(function()
-    local val = tonumber(BangSpeedBox.Text)
-    if val and val >= 1 and val <= 300 then
-        bangSpeed = val
-        BangSpeedBtn.Text = "تم التثبيت: " .. val
-        task.wait(1)
-        BangSpeedBtn.Text = "START / ابدأ"
-    end
-end)
-
-LickSpeedBtn.MouseButton1Click:Connect(function()
-    local val = tonumber(LickSpeedBox.Text)
-    if val and val >= 1 and val <= 300 then
-        lickSpeed = val
-        LickSpeedBtn.Text = "تم التثبيت: " .. val
-        task.wait(1)
-        LickSpeedBtn.Text = "START / ابدأ"
-    end
-end)
-
-local InfiniteTab, InfBtn = CreateTab("Infinite", "أوامر انفنتي")
-InfBtn.LayoutOrder = 2
-
+-- ═══════════════════════════════════════════════════════
+-- TAB 2 : أوامر انفنتي
+-- ═══════════════════════════════════════════════════════
+local cmdsTab = MakeTab("أوامر انفنتي")
 local commands = {
-    "2022materials", "clearerror", "antilag", "xray", "antiafk", 
-    "antikick", "backtrack nan", "backtrack 999", "datalimit 660", 
-    "autokeypress nan", "autokeypress", "Replicationlag 999", "nofog"
+    "2022materials", "clearerror", "antilag", "xray",
+    "antiafk", "antikick", "backtrack nan", "backtrack 999",
+    "datalimit 660", "autokeypress nan", "autokeypress",
+    "Replicationlag 999", "nofog"
 }
+for _, cmd in ipairs(commands) do
+    MakeButton(cmdsTab, "📋  " .. cmd, function()
+        pcall(function()
+            if setclipboard then setclipboard(cmd) end
+        end)
+    end)
+end
 
-for i, cmd in ipairs(commands) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 25)
-    btn.Position = UDim2.new(0.05, 0, 0, (i-1)*30 + 5)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    btn.BackgroundTransparency = 0.2
-    btn.Text = cmd
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.Code
-    btn.TextSize = 12
-    btn.ZIndex = 4
-    btn.Parent = InfiniteTab
-    
-    btn.MouseButton1Click:Connect(function()
-        if setclipboard then
-            setclipboard(cmd)
-            btn.Text = "تم النسخ!"
-            task.wait(1)
-            btn.Text = cmd
+-- ═══════════════════════════════════════════════════════
+-- TAB 3 : سكربتات تحسين (بدون مكرر)
+-- ═══════════════════════════════════════════════════════
+local optTab = MakeTab("سكربتات تحسين")
+local optScripts = {
+    { name = "Optimizer v1",  url = "https://pastebin.com/raw/trEyCGm1" },
+    { name = "3skr Hub",      url = "https://scriptblox.com/raw/Universal-Script-3skr-hub-240428" },
+    { name = "Optimizer v2",  url = "https://pastebin.com/raw/HMEBL5Y7" },
+    { name = "Optimizer v3",  url = "https://pastebin.com/raw/SVBWBNMN" },
+    { name = "Optimizer v4",  url = "https://pastebin.com/raw/jNBy9uhB" },
+}
+for _, s in ipairs(optScripts) do
+    MakeButton(optTab, "▶  " .. s.name, function()
+        pcall(function()
+            loadstring(game:HttpGet(s.url))()
+        end)
+    end)
+end
+
+-- ═══════════════════════════════════════════════════════
+-- TAB 4 : سكربتات خاصه
+-- ═══════════════════════════════════════════════════════
+local privTab = MakeTab("سكربتات خاصه")
+local privScripts = {
+    { name = "Private 1",      url = "https://pastefy.app/mXMaE9fC/raw" },
+    { name = "MADARA x CATAY", url = "https://raw.githubusercontent.com/MADARA9223/AL7FRAA-MADARAxCATAY/refs/heads/main/AL7FRAA%20%7C%20MADARAxCATAYxROBERTO" },
+    { name = "Private 2",      url = "https://pastebin.com/raw/JEUtzDyu" },
+    { name = "AL-QYADAH F7LK", url = "https://raw.githubusercontent.com/professor-f7lk/AL-QYADAHF7LK-/refs/heads/main/README.md" },
+    { name = "Private 3",      url = "https://pastebin.com/raw/mAtRSqbu" },
+    { name = "Private 4",      url = "https://pastefy.app/WhGd80IZ/raw" },
+    { name = "GAROU XR7",      url = "https://scriptblox.com/raw/Universal-Script-GAROU-XR7-230829" },
+    { name = "Kaize25KP",      url = "https://encrypt-x.pages.dev/Scripts?Id=Kaize25KP", param = "Kaize25KP" },
+}
+for _, s in ipairs(privScripts) do
+    MakeButton(privTab, "▶  " .. s.name, function()
+        pcall(function()
+            if s.param then
+                loadstring(game:HttpGet(s.url))(s.param)
+            else
+                loadstring(game:HttpGet(s.url))()
+            end
+        end)
+    end)
+end
+
+-- ═══════════════════════════════════════════════════════
+-- TAB 5 : رتب
+-- ═══════════════════════════════════════════════════════
+local rankTab = MakeTab("رتب")
+
+MakeLabel(rankTab, "👑 رتبة (مالك السكربت)", Color3.fromRGB(255, 200, 50))
+local ownerBox = MakeTextbox(rankTab, "كلمة السر...")
+local ownerStatus = MakeLabel(rankTab, "الحالة: غير مفعّلة", Color3.fromRGB(200, 100, 100))
+MakeButton(rankTab, "تفعيل رتبة المالك", function()
+    if ownerBox.Text == OWNER_PASS then
+        RANK = "owner"
+        ownerStatus.Text = "الحالة: ✅ مفعّلة (مالك)"
+        ownerStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+    end
+    ownerBox.Text = ""
+end)
+
+MakeLabel(rankTab, "🛡️ رتبة (ادمن)", Color3.fromRGB(100, 200, 255))
+local adminBox = MakeTextbox(rankTab, "كلمة السر...")
+local adminStatus = MakeLabel(rankTab, "الحالة: غير مفعّلة", Color3.fromRGB(200, 100, 100))
+MakeButton(rankTab, "تفعيل رتبة ادمن", function()
+    if adminBox.Text == ADMIN_PASS then
+        RANK = "admin"
+        adminStatus.Text = "الحالة: ✅ مفعّلة (ادمن)"
+        adminStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+    end
+    adminBox.Text = ""
+end)
+
+MakeLabel(rankTab, "⭐ رتبة (صملاوي) — تتطلب 50 ساعة متواصلة", Color3.fromRGB(255, 100, 200))
+local samlawiStatus = MakeLabel(rankTab, "الوقت: 00:00:00 / 50:00:00", Color3.fromRGB(200, 200, 220))
+task.spawn(function()
+    while true do
+        task.wait(1)
+        local t = tick() - USAGE_START
+        samlawiStatus.Text = "الوقت: " .. FormatTime(t) .. " / 50:00:00"
+        if t >= 50 * 3600 and RANK == "none" then
+            RANK = "samlawi"
+            samlawiStatus.Text = "✅ رتبة صملاوي مفعّلة!"
+            samlawiStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
         end
-    end)
+    end
+end)
+
+-- ═══════════════════════════════════════════════════════
+-- TAB 6 : حقوق
+-- ═══════════════════════════════════════════════════════
+local creditsTab = MakeTab("حقوق")
+MakeLabel(creditsTab, "📱 تيك توك: w_.0.10",     Color3.fromRGB(200, 200, 255))
+MakeLabel(creditsTab, "💬 دسكورد: 9z_e.1",       Color3.fromRGB(150, 200, 255))
+MakeLabel(creditsTab, "")
+MakeLabel(creditsTab, "🛡️ محمي من قبل 𝒍𝒂𝒏𝒔𝒉𝒆𝒓", Color3.fromRGB(255, 100, 150))
+MakeLabel(creditsTab, "فقط لأصدقاء 𝒍𝒂𝒏𝒔𝒉𝒆𝒓 و 𝒔𝒍𝒂𝒏𝒅𝒆𝒓", Color3.fromRGB(255, 150, 150))
+MakeLabel(creditsTab, "ولا ننسى كسم AS وأصدقائهم ❤️", Color3.fromRGB(200, 150, 255))
+
+-- ═══════════════════════════════════════════════════════
+-- تفعيل التاب الأول تلقائياً
+-- ═══════════════════════════════════════════════════════
+local first = Tabs["بانق GG"]
+if first then
+    first.Button.BackgroundColor3 = Color3.fromRGB(150, 50, 255)
+    first.Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    first.Frame.Visible = true
 end
-
-local ImproveTab, ImpBtn = CreateTab("Improve", "سكربتات تحسين")
-ImpBtn.LayoutOrder = 3
-
-local improveScripts = {
-    "https://pastebin.com/raw/trEyCGm1",
-    "https://scriptblox.com/raw/Universal-Script-3skr-hub-240428",
-    "https://pastebin.com/raw/HMEBL5Y7",
-    "https://pastebin.com/raw/SVBWBNMN",
-    "https://pastebin.com/raw/jNBy9uhB"
-}
-
-for i, url in ipairs(improveScripts) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 30)
-    btn.Position = UDim2.new(0.05, 0, 0, (i-1)*35 + 5)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
-    btn.BackgroundTransparency = 0.2
-    btn.Text = "تشغيل سكربت " .. i
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.Gotham
-    btn.ZIndex = 4
-    btn.Parent = ImproveTab
-    
-    btn.MouseButton1Click:Connect(function()
-        btn.Text = "جاري التشغيل..."
-        pcall(function()
-            loadstring(game:HttpGet(url))()
-        end)
-        btn.Text = "تم التشغيل"
-    end)
-end
-
-local SpecialTab, SpecBtn = CreateTab("Special", "سكربتات خاصة")
-SpecBtn.LayoutOrder = 4
-
-local specialScripts = {
-    "https://pastefy.app/mXMaE9fC/raw",
-    "https://raw.githubusercontent.com/MADARA9223/AL7FRAA-MADARAxCATAY/refs/heads/main/AL7FRAA%20%7C%20MADARAxCATAYxROBERTO",
-    "https://pastebin.com/raw/JEUtzDyu",
-    "https://raw.githubusercontent.com/professor-f7lk/AL-QYADAHF7LK-/refs/heads/main/README.md",
-    "https://pastebin.com/raw/mAtRSqbu",
-    "https://pastefy.app/WhGd80IZ/raw",
-    "https://scriptblox.com/raw/Universal-Script-GAROU-XR7-230829",
-    "https://encrypt-x.pages.dev/Scripts?Id=Kaize25KP"
-}
-
-for i, url in ipairs(specialScripts) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 30)
-    btn.Position = UDim2.new(0.05, 0, 0, (i-1)*35 + 5)
-    btn.BackgroundColor3 = Color3.fromRGB(100, 0, 100)
-    btn.BackgroundTransparency = 0.2
-    btn.Text = "تشغيل سكربت " .. i
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.Gotham
-    btn.ZIndex = 4
-    btn.Parent = SpecialTab
-    
-    btn.MouseButton1Click:Connect(function()
-        btn.Text = "جاري التشغيل..."
-        pcall(function()
-            loadstring(game:HttpGet(url))()
-        end)
-        btn.Text = "تم التشغيل"
-    end)
-end
-
-local RankTab, RankBtn = CreateTab("Rank", "رتب")
-RankBtn.LayoutOrder = 5
-
-local OwnerPass = Instance.new("TextBox")
-OwnerPass.Size = UDim2.new(0.9, 0, 0, 30)
-OwnerPass.Position = UDim2.new(0.05, 0, 0, 10)
-OwnerPass.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-OwnerPass.BackgroundTransparency = 0.2
-OwnerPass.TextColor3 = Color3.fromRGB(255, 255, 255)
-OwnerPass.PlaceholderText = "كلمة سر مالك السكربت (omar)"
-OwnerPass.ZIndex = 4
-OwnerPass.Parent = RankTab
-
-local AdminPass = Instance.new("TextBox")
-AdminPass.Size = UDim2.new(0.9, 0, 0, 30)
-AdminPass.Position = UDim2.new(0.05, 0, 0, 50)
-AdminPass.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-AdminPass.BackgroundTransparency = 0.2
-AdminPass.TextColor3 = Color3.fromRGB(255, 255, 255)
-AdminPass.PlaceholderText = "كلمة سر الادمن (scopa)"
-AdminPass.ZIndex = 4
-AdminPass.Parent = RankTab
-
-local SamlawiLabel = Instance.new("TextLabel")
-SamlawiLabel.Size = UDim2.new(0.9, 0, 0, 30)
-SamlawiLabel.Position = UDim2.new(0.05, 0, 0, 90)
-SamlawiLabel.BackgroundTransparency = 1
-SamlawiLabel.Text = "رتبة صملاوي: تتطلب 50 ساعة تشغيل متواصل"
-SamlawiLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-SamlawiLabel.Font = Enum.Font.Gotham
-SamlawiLabel.ZIndex = 3
-SamlawiLabel.Parent = RankTab
-
-OwnerPass.FocusLost:Connect(function()
-    if OwnerPass.Text == "omar" then
-        OwnerPass.Text = "تم تفعيل رتبة المالك!"
-        OwnerPass.TextColor3 = Color3.fromRGB(0, 255, 0)
-    else
-        OwnerPass.Text = "كلمة سر خاطئة"
-        OwnerPass.TextColor3 = Color3.fromRGB(255, 0, 0)
-    end
-end)
-
-AdminPass.FocusLost:Connect(function()
-    if AdminPass.Text == "scopa" then
-        AdminPass.Text = "تم تفعيل رتبة الأدمن!"
-        AdminPass.TextColor3 = Color3.fromRGB(0, 255, 0)
-    else
-        AdminPass.Text = "كلمة سر خاطئة"
-        AdminPass.TextColor3 = Color3.fromRGB(255, 0, 0)
-    end
-end)
-
-local RightsTab, RightBtn = CreateTab("Rights", "حقوق")
-RightBtn.LayoutOrder = 6
-
-local TikTok = Instance.new("TextLabel")
-TikTok.Size = UDim2.new(0.9, 0, 0, 30)
-TikTok.Position = UDim2.new(0.05, 0, 0, 10)
-TikTok.BackgroundTransparency = 1
-TikTok.Text = "تيك توك المالك: w_.0.10"
-TikTok.TextColor3 = Color3.fromRGB(255, 255, 255)
-TikTok.Font = Enum.Font.GothamBold
-TikTok.ZIndex = 3
-TikTok.Parent = RightsTab
-
-local Discord = Instance.new("TextLabel")
-Discord.Size = UDim2.new(0.9, 0, 0, 30)
-Discord.Position = UDim2.new(0.05, 0, 0, 40)
-Discord.BackgroundTransparency = 1
-Discord.Text = "دسكورد المالك: 9z_e.1"
-Discord.TextColor3 = Color3.fromRGB(100, 150, 255)
-Discord.Font = Enum.Font.GothamBold
-Discord.ZIndex = 3
-Discord.Parent = RightsTab
-
-local Protection = Instance.new("TextLabel")
-Protection.Size = UDim2.new(0.9, 0, 0, 100)
-Protection.Position = UDim2.new(0.05, 0, 0, 80)
-Protection.BackgroundTransparency = 1
-Protection.Text = "هذا السكربت محمي من قبل 𝒍𝒂𝒏𝒔𝒉𝒆𝒓\nلا يمكن اي احد استخدامه الا اصدقاء 𝒍𝒂𝒏𝒔𝒉𝒆𝒓\nاو اصدقاء 𝒔𝒍𝒂𝒏𝒅𝒆𝒓\nولا ننسى كسم 𝑨𝑺 وا اصدقائهم"
-Protection.TextColor3 = Color3.fromRGB(200, 200, 200)
-Protection.Font = Enum.Font.Gotham
-Protection.TextSize = 12
-Protection.TextWrapped = true
-Protection.ZIndex = 3
-Protection.Parent = RightsTab
-
-local draggingTitle, dragInputTitle, dragStartTitle, startPosTitle
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        draggingTitle = true
-        dragStartTitle = input.Position
-        startPosTitle = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                draggingTitle = false
-            end
-        end)
-    end
-end)
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInputTitle = input
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInputTitle and draggingTitle then
-        local delta = input.Position - dragStartTitle
-        MainFrame.Position = UDim2.new(startPosTitle.X.Scale, startPosTitle.X.Offset + delta.X, startPosTitle.Y.Scale, startPosTitle.Y.Offset + delta.Y)
-    end
-end)
-
-local draggingBtn, dragInputBtn, dragStartBtn, startPosBtn
-ToggleButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        draggingBtn = true
-        dragStartBtn = input.Position
-        startPosBtn = ToggleButton.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                draggingBtn = false
-            end
-        end)
-    end
-end)
-ToggleButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInputBtn = input
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInputBtn and draggingBtn then
-        local delta = input.Position - dragStartBtn
-        ToggleButton.Position = UDim2.new(startPosBtn.X.Scale, startPosBtn.X.Offset + delta.X, startPosBtn.Y.Scale, startPosBtn.Y.Offset + delta.Y)
-    end
-end)
-
-ToggleButton.MouseButton1Click:Connect(function()
-    isOpen = not isOpen
-    MainFrame.Visible = isOpen
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    isOpen = false
-end)
