@@ -1,6 +1,10 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+task.wait(0.5)
+
+local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() and Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
 local isOpen = false
@@ -15,7 +19,20 @@ local isTimerRunning = true
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "REDZ_HUB"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game:GetService("CoreGui")
+
+local _guiParent
+local success, result = pcall(function() return gethui() end)
+if success and result then
+    _guiParent = result
+else
+    local success2, result2 = pcall(function() return game:GetService("CoreGui") end)
+    if success2 and result2 then
+        _guiParent = result2
+    else
+        _guiParent = LocalPlayer:WaitForChild("PlayerGui")
+    end
+end
+ScreenGui.Parent = _guiParent
 
 local ToggleButton = Instance.new("ImageButton")
 ToggleButton.Name = "ToggleButton"
