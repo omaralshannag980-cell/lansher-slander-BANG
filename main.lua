@@ -2,10 +2,9 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 if not game:IsLoaded() then game.Loaded:Wait() end
-task.wait(0.5)
+task.wait(1)
 
 local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() and Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 
 local isOpen = false
 local targetPlayer = nil
@@ -45,7 +44,6 @@ ToggleButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.ScaleType = Enum.ScaleType.Crop
 ToggleButton.ClipsDescendants = true
 ToggleButton.Parent = ScreenGui
-ToggleButton.Draggable = true
 
 local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(1, 0)
@@ -119,6 +117,11 @@ local TabListCorner = Instance.new("UICorner")
 TabListCorner.CornerRadius = UDim.new(0, 5)
 TabListCorner.Parent = TabList
 
+local TabListLayout = Instance.new("UIListLayout")
+TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabListLayout.Padding = UDim.new(0, 5)
+TabListLayout.Parent = TabList
+
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, -145, 1, -45)
 ContentFrame.Position = UDim2.new(0, 140, 0, 40)
@@ -164,11 +167,6 @@ local function CreateTab(name, text)
         btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
         frame.Visible = true
     end)
-    
-    local layout = Instance.new("UIListLayout")
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 5)
-    layout.Parent = TabList
     
     return frame, btn
 end
@@ -363,11 +361,19 @@ Players.PlayerAdded:Connect(function(plr)
 end)
 
 local function PlayAnimation()
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
-        local anim = Instance.new("Animation")
-        anim.AnimationId = "rbxassetid://507771019"
-        local track = targetPlayer.Character.Humanoid:LoadAnimation(anim)
-        track:Play()
+    if targetPlayer and targetPlayer.Character then
+        local humanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://507771019"
+            local track
+            local success, err = pcall(function()
+                track = humanoid:LoadAnimation(anim)
+            end)
+            if success and track then
+                track:Play()
+            end
+        end
     end
 end
 
@@ -581,39 +587,53 @@ Protection.TextWrapped = true
 Protection.ZIndex = 3
 Protection.Parent = RightsTab
 
-local dragging
-local dragInput
-local dragStart
-local startPos
-
-local function update(input)
-    local delta = input.Position - dragStart
-    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
+local draggingTitle, dragInputTitle, dragStartTitle, startPosTitle
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-
+        draggingTitle = true
+        dragStartTitle = input.Position
+        startPosTitle = MainFrame.Position
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+                draggingTitle = false
             end
         end)
     end
 end)
-
 TitleBar.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+        dragInputTitle = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInputTitle and draggingTitle then
+        local delta = input.Position - dragStartTitle
+        MainFrame.Position = UDim2.new(startPosTitle.X.Scale, startPosTitle.X.Offset + delta.X, startPosTitle.Y.Scale, startPosTitle.Y.Offset + delta.Y)
     end
 end)
 
+local draggingBtn, dragInputBtn, dragStartBtn, startPosBtn
+ToggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingBtn = true
+        dragStartBtn = input.Position
+        startPosBtn = ToggleButton.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingBtn = false
+            end
+        end)
+    end
+end)
+ToggleButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputBtn = input
+    end
+end)
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
+    if input == dragInputBtn and draggingBtn then
+        local delta = input.Position - dragStartBtn
+        ToggleButton.Position = UDim2.new(startPosBtn.X.Scale, startPosBtn.X.Offset + delta.X, startPosBtn.Y.Scale, startPosBtn.Y.Offset + delta.Y)
     end
 end)
 
@@ -626,5 +646,3 @@ CloseBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
     isOpen = false
 end)
-
-print("REDZ HUB Loaded Successfully!")
